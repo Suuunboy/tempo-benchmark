@@ -13,7 +13,6 @@
 #include <pybind11/stl.h>
 
 #include "tempo_algorithm.h"
-#include "energy_bpm.h"
 #include "autocorr_bpm.h"
 
 namespace py = pybind11;
@@ -40,12 +39,6 @@ PYBIND11_MODULE(tempo_cpp, m) {
         .def("get_bpm", &TempoAlgorithm::get_bpm)
         .def_property_readonly("name", &TempoAlgorithm::name);
 
-    py::class_<EnergyBPM, TempoAlgorithm>(m, "EnergyBPM")
-        .def(py::init<float, float, float>(),
-             py::arg("min_bpm")     = 60.0f,
-             py::arg("max_bpm")     = 200.0f,
-             py::arg("threshold_k") = 1.4f)
-        .def("process_block", &process_numpy<EnergyBPM>, py::arg("samples"));
 
     py::class_<AutocorrBPM, TempoAlgorithm>(m, "AutocorrBPM")
         .def(py::init<float, float>(),

@@ -14,7 +14,6 @@ ext_modules = [
     Pybind11Extension(
         "tempo_cpp",
         sources=[
-            "algorithms/cpp/src/energy_bpm.cpp",
             "algorithms/cpp/src/autocorr_bpm.cpp",
             "algorithms/cpp/bindings/python_bindings.cpp",
         ],
