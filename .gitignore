@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.venv/
+venv/
+.pytest_cache/
+
+# Build artifacts
+build/
+dist/
+*.so
+*.pyd
+*.dylib
+
+# Generated results
+results/*.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
