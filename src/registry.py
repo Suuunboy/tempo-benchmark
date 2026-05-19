@@ -17,6 +17,7 @@ def create(key: str):
         raise KeyError(
             f"Алгоритм {key} не зарегистрирован. Доступные: {list_algorithms()}"
         )
+    return _registry[key]()
 
 
 def register_default_algorithms() -> None:
