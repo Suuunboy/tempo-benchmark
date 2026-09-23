@@ -5,20 +5,29 @@ __pycache__/
 *.egg
 .venv/
 venv/
+env/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Build artifacts
 build/
 dist/
+wheelhouse/
 *.so
 *.pyd
 *.dylib
+*.o
+*.obj
 
 # Generated results
-results/*.png
+results/
 
-# IDE
+# IDE / OS
 .vscode/
 .idea/
 *.swp
 .DS_Store
+Thumbs.db
