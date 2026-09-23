@@ -1,10 +1,10 @@
 // algorithms/cpp/include/tempo_algorithm.h
 //
-// Базовый интерфейс для реалтайм-алгоритма определения темпа (BPM).
-// Все алгоритмы наследуются от этого класса. Это позволяет:
-//   - единообразно вызывать их из Python (через один pybind11 шаблон)
-//   - легко добавлять новые алгоритмы
-//   - использовать те же исходники в проекте DaisySeed без переписывания
+// Base interface for a real-time tempo (BPM) detection algorithm.
+// Every algorithm derives from this class. This makes it possible to:
+//   - call all of them from Python in the same way (via one pybind11 template)
+//   - add new algorithms easily
+//   - reuse the very same sources in a Daisy Seed project without rewriting
 //
 #pragma once
 
@@ -16,19 +16,19 @@ class TempoAlgorithm {
 public:
     virtual ~TempoAlgorithm() = default;
 
-    /// Сброс состояния алгоритма под заданную частоту дискретизации.
-    /// Вызывается один раз перед началом потоковой обработки.
+    /// Reset the algorithm state for the given sample rate.
+    /// Called once before streaming starts.
     virtual void reset(float sample_rate) = 0;
 
-    /// Обработать блок моно-сэмплов в диапазоне [-1, 1].
-    /// На DaisySeed сюда передаётся ровно один callback-блок (типично 48..1024 семплов).
+    /// Process a block of mono samples in the [-1, 1] range.
+    /// On Daisy Seed this receives exactly one audio callback block (typically 48..1024 samples).
     virtual void process_block(const float* samples, std::size_t num_samples) = 0;
 
-    /// Текущая оценка темпа в BPM (0, если ещё не оценен).
-    /// Может вызываться сколь угодно часто — должна быть дешёвой.
+    /// Current tempo estimate in BPM (0 if not estimated yet).
+    /// May be called arbitrarily often, so it must be cheap.
     virtual float get_bpm() const = 0;
 
-    /// Имя алгоритма для отчётов/UI.
+    /// Algorithm name for reports/UI.
     virtual const char* name() const = 0;
 };
 

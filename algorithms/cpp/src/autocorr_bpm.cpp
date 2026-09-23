@@ -12,12 +12,12 @@ AutocorrBPM::AutocorrBPM(float min_bpm, float max_bpm)
 void AutocorrBPM::reset(float sample_rate) {
     sample_rate_ = sample_rate;
 
-    // Окно ~10 мс -> огибающая идёт на ~100 Гц
+    // ~10 ms window -> the envelope runs at ~100 Hz
     window_size_ = static_cast<std::size_t>(sample_rate_ * 0.010f);
     if (window_size_ < 32) window_size_ = 32;
     envelope_rate_ = sample_rate_ / static_cast<float>(window_size_);
 
-    // Буфер огибающей: 6 секунд - этого хватит, чтобы поймать любой темп от 60 BPM
+    // 6 seconds of envelope is enough to catch any tempo from 60 BPM up
     envelope_size_ = static_cast<std::size_t>(envelope_rate_ * 6.0f);
     envelope_.assign(envelope_size_, 0.0f);
     envelope_idx_   = 0;
@@ -26,7 +26,7 @@ void AutocorrBPM::reset(float sample_rate) {
     window_pos_         = 0;
     window_energy_acc_  = 0.0f;
 
-    // Пересчитываем BPM каждые ~0.5 сек
+    // Recompute BPM every ~0.5 s
     compute_period_windows_ = static_cast<std::size_t>(envelope_rate_ * 0.5f);
     windows_since_compute_  = 0;
 
@@ -38,7 +38,7 @@ void AutocorrBPM::reset(float sample_rate) {
 }
 
 void AutocorrBPM::close_window() {
-    // RMS энергии в окне
+    // RMS energy of the window
     float energy = window_energy_acc_ / static_cast<float>(window_size_);
     energy = std::sqrt(energy);
 
@@ -58,42 +58,42 @@ void AutocorrBPM::close_window() {
 }
 
 void AutocorrBPM::compute_bpm() {
-    // Линеаризуем кольцевой буфер в хронологическом порядке
+    // Unroll the ring buffer into chronological order
     std::vector<float> env(envelope_count_);
     for (std::size_t i = 0; i < envelope_count_; ++i) {
         std::size_t pos;
         if (envelope_count_ < envelope_size_) {
-            // Буфер ещё не заполнен — данные лежат от 0 до envelope_count_
+            // Buffer not full yet: data lies in [0, envelope_count_)
             pos = i;
         } else {
-            // Старейший элемент в envelope_idx_, идём по кругу
+            // The oldest element is at envelope_idx_, wrap around
             pos = (envelope_idx_ + i) % envelope_size_;
         }
         env[i] = envelope_[pos];
     }
 
-    // Вычитаем среднее (нужно для корректной АКФ)
+    // Subtract the mean (required for a proper ACF)
     float mean = 0.0f;
     for (float v : env) mean += v;
     mean /= static_cast<float>(env.size());
     for (float& v : env) v -= mean;
 
-    // Novelty function: положительная разность (HWR от d/dt) -
-    // усиливает атаки, нивелирует затухания
+    // Novelty function: half-wave rectified first difference (HWR of d/dt) -
+    // emphasizes attacks and suppresses decays
     std::vector<float> novelty(env.size(), 0.0f);
     for (std::size_t i = 1; i < env.size(); ++i) {
         const float d = env[i] - env[i - 1];
         novelty[i] = (d > 0.0f) ? d : 0.0f;
     }
 
-    // Диапазон лагов автокорреляции в семплах огибающей
+    // Autocorrelation lag range, in envelope samples
     std::size_t lag_min = static_cast<std::size_t>(envelope_rate_ * 60.0f / max_bpm_);
     std::size_t lag_max = static_cast<std::size_t>(envelope_rate_ * 60.0f / min_bpm_);
     if (lag_max >= novelty.size()) lag_max = novelty.size() - 1;
     if (lag_min < 1) lag_min = 1;
     if (lag_min >= lag_max) return;
 
-    // Прямой проход АКФ - O(N*L). На ARM это ~50k операций раз в 0.5 с, дёшево.
+    // Direct ACF, O(N*L). On ARM that is ~50k operations every 0.5 s, cheap.
     float best_acf = -1e30f;
     std::size_t best_lag = lag_min;
     for (std::size_t lag = lag_min; lag <= lag_max; ++lag) {
@@ -110,7 +110,7 @@ void AutocorrBPM::compute_bpm() {
 
     const float bpm = 60.0f * envelope_rate_ / static_cast<float>(best_lag);
 
-    // Сглаживание медианой по последним 8 оценкам
+    // Median smoothing over the last 8 estimates
     bpm_history_[bpm_history_idx_] = bpm;
     bpm_history_idx_ = (bpm_history_idx_ + 1) % SMOOTH_SIZE;
     if (bpm_history_count_ < SMOOTH_SIZE) ++bpm_history_count_;

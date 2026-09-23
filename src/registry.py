@@ -15,7 +15,7 @@ def list_algorithms() -> List[str]:
 def create(key: str):
     if key not in _registry:
         raise KeyError(
-            f"Алгоритм {key} не зарегистрирован. Доступные: {list_algorithms()}"
+            f"Algorithm {key} is not registered. Available: {list_algorithms()}"
         )
     return _registry[key]()
 
@@ -32,5 +32,5 @@ def register_default_algorithms() -> None:
         register("autocorr_cpp", lambda: tempo_cpp.AutocorrBPM())
 
     except ImportError as e:
-        print(f"[ВНИМАНИЕ] C++ модуль tempo_cpp не найден: {e}")
-        print("          Соберите его командой: pip install -e .")
+        print(f"[WARNING] C++ module tempo_cpp not found: {e}")
+        print("          Build it with: pip install -e .")

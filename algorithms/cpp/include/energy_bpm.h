@@ -1,18 +1,18 @@
 // algorithms/cpp/include/energy_bpm.h
 //
-// EnergyBPM - реалтайм-детектор BPM по пикам энергии.
+// EnergyBPM - real-time BPM detector based on energy peaks.
 //
-// Основан на классическом подходе (см. Scheirer 1998, Patin):
-//   1. Поток сэмплов делится на короткие окна ~23 мс
-//   2. В каждом окне считается средняя энергия (сумма квадратов / N)
-//   3. Ведётся скользящая история ~1 секунды (43 окна)
-//   4. Адаптивный порог = mean(history) + k * stddev(history)
-//   5. Если текущая энергия > порога и прошло >= min_gap от последнего бита - это бит
-//   6. BPM = медиана из последних оценок (по интервалам между битами)
+// Follows the classic approach (see Scheirer 1998, Patin):
+//   1. The sample stream is split into short ~23 ms windows
+//   2. The mean energy (sum of squares / N) is computed for each window
+//   3. A sliding history of ~1 second (43 windows) is kept
+//   4. Adaptive threshold = mean(history) + k * stddev(history)
+//   5. If the current energy > threshold and >= min_gap has passed since the last beat, it is a beat
+//   6. BPM = median of the recent estimates (from the intervals between beats)
 //
-// Достоинства: O(1) на сэмпл, минимум памяти (~200 байт состояния),
-//              не требует FFT - идеально для Cortex-M7.
-// Ограничения: лучше работает на перкуссивной музыке, слаб на legato/струнных.
+// Pros:        O(1) per sample, tiny memory footprint (< 400 bytes of state),
+//              no FFT required - a great fit for Cortex-M7.
+// Limitations: works best on percussive music, weak on legato/strings.
 //
 #pragma once
 
@@ -38,29 +38,29 @@ private:
     void close_window();
     void register_beat(std::int64_t at_sample);
 
-    // Параметры
+    // Parameters
     float min_bpm_;
     float max_bpm_;
     float threshold_k_;
 
-    // Текущее окно интеграции энергии
+    // Current energy integration window
     float sample_rate_{0.0f};
     std::size_t window_size_{0};
     std::size_t window_pos_{0};
     float window_energy_acc_{0.0f};
 
-    // Кольцевой буфер истории энергии (~1 секунда)
+    // Ring buffer of the energy history (~1 second)
     static constexpr std::size_t HISTORY_SIZE = 43;
     std::array<float, HISTORY_SIZE> energy_history_{};
     std::size_t history_idx_{0};
     std::size_t history_count_{0};
 
-    // Учёт интервалов между битами
+    // Inter-beat interval tracking
     std::int64_t samples_processed_{0};
     std::int64_t last_beat_sample_{-1};
     std::int64_t min_beat_gap_samples_{0};
 
-    // Скользящее окно оценок BPM для медианной фильтрации
+    // Sliding window of BPM estimates for median filtering
     static constexpr std::size_t MAX_INTERVALS = 24;
     std::array<float, MAX_INTERVALS> recent_bpms_{};
     std::size_t bpms_idx_{0};

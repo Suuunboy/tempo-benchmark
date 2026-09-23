@@ -1,20 +1,20 @@
 // algorithms/cpp/include/autocorr_bpm.h
 //
-// AutocorrBPM - реалтайм-детектор BPM на основе автокорреляции огибающей энергии.
+// AutocorrBPM - real-time BPM detector based on autocorrelation of the energy envelope.
 //
-// Идея:
-//   1. Аудио конвертируется в огибающую энергии (RMS в коротких окнах ~10 мс)
-//      -> снижение частоты в ~440 раз (от 44.1 кГц до ~100 Гц)
-//   2. Огибающая хранится в кольцевом буфере ~6 секунд
-//   3. Каждые ~0.5 сек запускается автокорреляция для интервала лагов,
-//      соответствующего BPM 60..200
-//   4. Берётся лаг с максимумом ACF -> BPM = 60 * envelope_rate / lag
-//   5. Финальная оценка - медиана последних 8 значений (стабилизация)
+// Idea:
+//   1. Audio is converted into an energy envelope (RMS over short ~10 ms windows)
+//      -> ~440x rate reduction (from 44.1 kHz down to ~100 Hz)
+//   2. The envelope is kept in a ~6 second ring buffer
+//   3. Every ~0.5 s an autocorrelation is computed over the lag range
+//      corresponding to 60..200 BPM
+//   4. The lag with the maximum ACF is taken -> BPM = 60 * envelope_rate / lag
+//   5. The final estimate is the median of the last 8 values (stabilization)
 //
-// Достоинства:  устойчивее на не-перкуссивной музыке, лучше передаёт
-//               периодичность, не зависит от индивидуальных битов
-// Стоимость:    O(N * L) автокорреляции каждые 0.5 с, где N ~ 600, L ~ 70.
-//               На Cortex-M7 это около 40-50 тыс. операций раз в 0.5 с — приемлемо.
+// Pros:  more robust on non-percussive music, captures periodicity better,
+//        does not depend on individual beats
+// Cost:  O(N * L) autocorrelation every 0.5 s, where N ~ 600, L ~ 70.
+//        On a Cortex-M7 that is about 40-50k operations every 0.5 s - acceptable.
 //
 #pragma once
 
@@ -38,28 +38,28 @@ private:
     void close_window();
     void compute_bpm();
 
-    // Параметры
+    // Parameters
     float min_bpm_;
     float max_bpm_;
 
-    // Окно интегрирования энергии (RMS)
+    // Energy (RMS) integration window
     float sample_rate_{0.0f};
     std::size_t window_size_{0};
     std::size_t window_pos_{0};
     float window_energy_acc_{0.0f};
-    float envelope_rate_{0.0f}; // частота отсчётов огибающей в Гц
+    float envelope_rate_{0.0f}; // envelope sample rate, Hz
 
-    // Кольцевой буфер огибающей
+    // Envelope ring buffer
     std::vector<float> envelope_;
     std::size_t envelope_size_{0};
     std::size_t envelope_idx_{0};
     std::size_t envelope_count_{0};
 
-    // Когда пересчитывать BPM
+    // When to recompute BPM
     std::size_t windows_since_compute_{0};
     std::size_t compute_period_windows_{0};
 
-    // Медианное сглаживание BPM
+    // Median smoothing of BPM
     static constexpr std::size_t SMOOTH_SIZE = 8;
     float bpm_history_[SMOOTH_SIZE]{};
     std::size_t bpm_history_idx_{0};

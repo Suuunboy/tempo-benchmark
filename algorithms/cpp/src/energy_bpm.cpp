@@ -12,8 +12,8 @@ EnergyBPM::EnergyBPM(float min_bpm, float max_bpm, float threshold_k)
 void EnergyBPM::reset(float sample_rate) {
     sample_rate_ = sample_rate;
 
-    // Окно интегрирования энергии ~23 мс. Типично 1024 семпла @ 44.1 кГц.
-    // Это компромисс между разрешением и стабильностью оценки энергии.
+    // Energy integration window of ~23 ms, typically 1024 samples @ 44.1 kHz.
+    // A trade-off between time resolution and stability of the energy estimate.
     window_size_ = static_cast<std::size_t>(sample_rate_ * 0.023f);
     if (window_size_ < 32) window_size_ = 32;
 
@@ -26,7 +26,7 @@ void EnergyBPM::reset(float sample_rate) {
 
     samples_processed_     = 0;
     last_beat_sample_      = -1;
-    // Минимальный интервал между битами = 60/max_bpm секунд
+    // Minimum interval between beats = 60/max_bpm seconds
     min_beat_gap_samples_  = static_cast<std::int64_t>(sample_rate_ * 60.0f / max_bpm_);
 
     recent_bpms_.fill(0.0f);
@@ -39,7 +39,7 @@ void EnergyBPM::reset(float sample_rate) {
 void EnergyBPM::close_window() {
     const float energy = window_energy_acc_ / static_cast<float>(window_size_);
 
-    // Считаем среднее и СКО по истории
+    // Mean and standard deviation over the history
     float mean = 0.0f;
     for (std::size_t i = 0; i < history_count_; ++i) mean += energy_history_[i];
     if (history_count_ > 0) mean /= static_cast<float>(history_count_);
@@ -54,7 +54,7 @@ void EnergyBPM::close_window() {
 
     const float threshold = mean + threshold_k_ * std_dev;
 
-    // Регистрируем бит, если набралась хотя бы половина истории и пик выше порога
+    // Register a beat once at least half of the history is filled and the peak exceeds the threshold
     if (history_count_ >= HISTORY_SIZE / 2 &&
         energy > threshold && energy > 1e-7f) {
         const std::int64_t now = samples_processed_;
@@ -63,7 +63,7 @@ void EnergyBPM::close_window() {
         }
     }
 
-    // Кольцевой push в историю
+    // Push into the history ring buffer
     energy_history_[history_idx_] = energy;
     history_idx_ = (history_idx_ + 1) % HISTORY_SIZE;
     if (history_count_ < HISTORY_SIZE) ++history_count_;
@@ -78,7 +78,7 @@ void EnergyBPM::register_beat(std::int64_t at_sample) {
         const float interval_sec    = static_cast<float>(interval) / sample_rate_;
         float bpm = 60.0f / interval_sec;
 
-        // Поправляем октавы: если попали в половинный/двойной темп, сдвинем в диапазон
+        // Octave correction: fold half/double tempo back into the allowed range
         while (bpm > 0.0f && bpm < min_bpm_) bpm *= 2.0f;
         while (bpm > max_bpm_)               bpm *= 0.5f;
 
@@ -87,7 +87,7 @@ void EnergyBPM::register_beat(std::int64_t at_sample) {
             bpms_idx_ = (bpms_idx_ + 1) % MAX_INTERVALS;
             if (bpms_count_ < MAX_INTERVALS) ++bpms_count_;
 
-            // Медианная фильтрация оценок — устойчива к выбросам
+            // Median filtering of the estimates is robust to outliers
             if (bpms_count_ >= 4) {
                 float sorted[MAX_INTERVALS];
                 for (std::size_t i = 0; i < bpms_count_; ++i) sorted[i] = recent_bpms_[i];

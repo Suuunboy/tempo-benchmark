@@ -17,7 +17,7 @@ class BenchmarkResult:
     runs: Dict[str, RealtimeRun] = field(default_factory=dict)
 
     def errors(self) -> Dict[str, float]:
-        """Подписная ошибка каждого алгоритма относительно референса"""
+        """Signed error of each algorithm relative to the reference."""
         if self.reference_bpm is None:
             return {}
         return {
@@ -39,14 +39,14 @@ def run_benchmark(
     )
 
     for key in algorithm_keys:
-        print(f"  > Запуск '{key}'...", end="", flush=True)
+        print(f"  > Running '{key}'...", end="", flush=True)
         algo = registry.create(key)
         run = simulate_realtime(algo, audio, sample_rate, block_size)
         result.runs[key] = run
         print(
             f" BPM={run.final_bpm:6.2f}  "
-            f"время={run.processing_time_sec:.2f}с  "
-            f"(RT-фактор {run.realtime_factor:.1f}x)"
+            f"time={run.processing_time_sec:.2f}s  "
+            f"(RT factor {run.realtime_factor:.1f}x)"
         )
 
     if reference_key in result.runs:

@@ -1,26 +1,26 @@
-"""CLI-скрипт стенда 
+"""Command-line entry point of the testbench.
 
-Примеры использования:
+Usage examples:
 
-  # Запуск с дефолтным синтетическим клик-треком (120 BPM, 12 с)
+  # Run on the default synthetic click track (120 BPM, 12 s)
   python main.py
 
-  # Свой синтетический BPM/длительность (хорошо для регрессионного теста)
+  # Custom synthetic BPM/duration (handy as a regression test)
   python main.py --bpm 140 --duration 20
 
-  # Загрузить свой аудио-файл
+  # Load your own audio file
   python main.py --file path/to/song.mp3
 
-  # Конкретные алгоритмы
+  # Run only specific algorithms
   python main.py --algorithms energy_cpp,librosa_reference
 
-  # Другой размер блока (как на DaisySeed - 48 или 256)
+  # Different block size (as on Daisy Seed: 48 or 256)
   python main.py --block-size 256
 
-  # Без открытия окна matplotlib, только сохранение PNG
+  # Do not open a matplotlib window, only save the PNG
   python main.py --no-show --output results/run_001.png
 
-  # Просто показать список зарегистрированных алгоритмов
+  # Just list the registered algorithms
   python main.py --list
 """
 
@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import sys
+from typing import Optional, Sequence
 
 from src import registry
 from src.audio_io import generate_click_track, load_audio, DEFAULT_SR
@@ -35,57 +36,57 @@ from src.benchmark import run_benchmark
 from src.visualization import plot_comparison
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Тестовый стенд для сравнения алгоритмов определения темпа музыки",
+        description="Testbench for comparing real-time music tempo (BPM) detection algorithms",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument("--file", type=str, default=None,
-                    help="Путь к аудио-файлу. Если не указан, используется синтетический клик-трек.")
+                    help="Path to an audio file. If omitted, a synthetic click track is used.")
     p.add_argument("--bpm", type=float, default=120.0,
-                    help="BPM для синтетического сигнала (если --file не задан)")
+                    help="BPM of the synthetic signal (when --file is not set)")
     p.add_argument("--duration", type=float, default=12.0,
-                    help="Длительность синтетического сигнала, с")
+                    help="Duration of the synthetic signal, s")
     p.add_argument("--noise", type=float, default=0.0,
-                    help="Уровень белого шума в синтетическом сигнале (0..1)")
+                    help="White noise level in the synthetic signal (0..1)")
     p.add_argument("--sample-rate", type=int, default=DEFAULT_SR,
-                    help="Целевая частота дискретизации")
+                    help="Target sample rate")
     p.add_argument("--block-size", type=int, default=1024,
-                    help="Размер блока обработки (имитирует callback на DaisySeed)")
+                    help="Processing block size (emulates the Daisy Seed audio callback)")
     p.add_argument("--algorithms", type=str, default=None,
-                    help="Список ключей через запятую (пусто = все доступные)")
+                    help="Comma-separated list of algorithm keys (empty = all available)")
     p.add_argument("--output", type=str, default="results/comparison.png",
-                    help="Путь сохранения PNG-отчёта")
+                    help="Where to save the PNG report")
     p.add_argument("--no-show", action="store_true",
-                    help="Не открывать окно matplotlib")
+                    help="Do not open a matplotlib window")
     p.add_argument("--list", action="store_true",
-                    help="Показать список зарегистрированных алгоритмов и выйти")
-    return p.parse_args()
+                    help="List the registered algorithms and exit")
+    return p.parse_args(argv)
 
 
-def main() -> int:
-    args = parse_args()
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = parse_args(argv)
     registry.register_default_algorithms()
 
     if args.list:
-        print("Доступные алгоритмы:")
+        print("Available algorithms:")
         for k in registry.list_algorithms():
             print(f"  - {k}")
         return 0
 
-    # 1. Загрузка / генерация аудио
+    # 1. Load / generate audio
     if args.file:
         path = Path(args.file)
         if not path.exists():
-            print(f"Файл не найден: {path}", file=sys.stderr)
+            print(f"File not found: {path}", file=sys.stderr)
             return 1
-        print(f"Загрузка аудио: {path}")
+        print(f"Loading audio: {path}")
         audio, sr = load_audio(str(path), target_sr=args.sample_rate)
-        print(f"  длительность: {len(audio) / sr:.1f} с, частота: {sr} Hz")
+        print(f"  duration: {len(audio) / sr:.1f} s, sample rate: {sr} Hz")
         expected_bpm = None
     else:
-        print(f"Использую синтетический клик-трек: {args.bpm:.1f} BPM, "
-               f"{args.duration:.1f} с, шум={args.noise}")
+        print(f"Using a synthetic click track: {args.bpm:.1f} BPM, "
+               f"{args.duration:.1f} s, noise={args.noise}")
         audio, sr = generate_click_track(
             bpm=args.bpm,
             duration_sec=args.duration,
@@ -94,32 +95,32 @@ def main() -> int:
         )
         expected_bpm = args.bpm
 
-    # 2. Выбор алгоритмов
+    # 2. Select algorithms
     available = registry.list_algorithms()
     if args.algorithms:
         keys = [k.strip() for k in args.algorithms.split(",") if k.strip()]
         unknown = [k for k in keys if k not in available]
         if unknown:
-            print(f"Неизвестные алгоритмы: {unknown}", file=sys.stderr)
-            print(f"Доступные: {available}", file=sys.stderr)
+            print(f"Unknown algorithms: {unknown}", file=sys.stderr)
+            print(f"Available: {available}", file=sys.stderr)
             return 1
     else:
         keys = available
 
-    # 3. Прогон
-    print(f"\nЗапуск бенчмарка ({len(keys)} алгоритм(ов), block_size={args.block_size}):")
+    # 3. Run
+    print(f"\nRunning benchmark ({len(keys)} algorithm(s), block_size={args.block_size}):")
     result = run_benchmark(audio, sr, keys, block_size=args.block_size)
 
-    # 4. Печать сводки
+    # 4. Print summary
     print("\n" + "=" * 70)
-    print("ИТОГИ")
+    print("SUMMARY")
     print("=" * 70)
     if expected_bpm is not None:
-        print(f"Истинный BPM (синтетика): {expected_bpm:.2f}")
+        print(f"True BPM (synthetic): {expected_bpm:.2f}")
     if result.reference_bpm is not None:
-        print(f"Референсный BPM (librosa): {result.reference_bpm:.2f}")
+        print(f"Reference BPM (librosa): {result.reference_bpm:.2f}")
     print()
-    print(f"{'Алгоритм':<28} {'BPM':>8} {'Ошибка':>10} {'RT-фактор':>12}")
+    print(f"{'Algorithm':<28} {'BPM':>8} {'Error':>10} {'RT factor':>12}")
     print("-" * 62)
     errors = result.errors()
     for key, run in result.runs.items():
@@ -129,7 +130,7 @@ def main() -> int:
                f"{err_str:>10} {run.realtime_factor:>10.1f}x")
     print()
 
-    # 5. Визуализация
+    # 5. Visualization
     plot_comparison(audio, sr, result,
                      output_path=Path(args.output),
                      show=not args.no_show)

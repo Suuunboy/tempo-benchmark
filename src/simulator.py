@@ -8,7 +8,7 @@ import numpy as np
 
 @dataclass
 class RealtimeRun:
-    """Результат одного прохода алгоритма в режиме реального времени."""
+    """Result of a single real-time pass of an algorithm."""
 
     algo_name: str
     block_size: int
@@ -21,11 +21,11 @@ class RealtimeRun:
 
     @property
     def realtime_factor(self) -> float:
-        """Отношение длительности аудио к времени обработки.
+        """Ratio of audio duration to processing time.
 
-        > 1: алгоритм быстрее реального времени
-        = 1: ровно в реальном времени
-        < 1: не успевает
+        > 1: faster than real time
+        = 1: exactly real time
+        < 1: cannot keep up
         """
         if self.processing_time_sec <= 0:
             return float("inf")
@@ -35,7 +35,7 @@ class RealtimeRun:
 def simulate_realtime(
     algorithm, audio: np.ndarray, sample_rate: int, block_size: int = 1024
 ) -> RealtimeRun:
-    """Прогнать алгоритм по аудио блоками. Возвращает динамику оценок BPM."""
+    """Feed the audio to the algorithm block by block and record BPM estimates over time."""
 
     name = getattr(algorithm, "name", algorithm.__class__.__name__)
     algorithm.reset(float(sample_rate))
@@ -55,22 +55,21 @@ def simulate_realtime(
         start = b * block_size
         end = min(start + block_size, n_samples)
         block = audio[start:end].astype(np.float32, copy=False)
-        # Гарантируем contiguous буфер — pybind11 будет читать как float*
+        # Ensure a contiguous buffer: pybind11 reads it as a raw float*
         if not block.flags.c_contiguous:
             block = np.ascontiguousarray(block)
 
         algorithm.process_block(block)
 
-        # Записываем текущую оценку в момент конца блока
+        # Record the current estimate at the end of the block
         t_in_track = end / sample_rate
         bpm = algorithm.get_bpm()
         run.times_sec.append(t_in_track)
         run.bpm_estimates.append(bpm)
 
-    # Для offline-алгоритмов (librosa) - финальный расчёт.
-    # Оценка появляется только в самом конце, поэтому ставим её только
-    # в последнюю точку, остальные оставляем нулями — это честнее отражает
-    # тот факт, что offline-алгоритм не работает в реальном времени.
+    # Offline algorithms (librosa) compute their estimate only at the very end,
+    # so it is written to the last point only and the rest stay zero. This
+    # honestly reflects that an offline algorithm does not work in real time.
     if hasattr(algorithm, "finalize"):
         bpm_final = algorithm.finalize()
         if run.bpm_estimates:
