@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77", "pybind11>=2.11"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tempo-benchmark"
+version = "0.1.0"
+description = "Testbench for comparing real-time BPM (tempo) detection algorithms written in C++"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Ivan Afanasov" }]
+requires-python = ">=3.9"
+keywords = ["bpm", "tempo", "beat-detection", "audio", "dsp", "benchmark", "pybind11", "daisy-seed"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "librosa>=0.10.0",
+    "soundfile>=0.12",
+    "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/Suuunboy/tempo-benchmark"
+Issues = "https://github.com/Suuunboy/tempo-benchmark/issues"
+
+[tool.setuptools]
+packages = ["src", "algorithms", "algorithms.python"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

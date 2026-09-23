@@ -1,9 +1,11 @@
-"""setup.py — сборка C++ модуля tempo_cpp через pybind11.
+"""Build script for the ``tempo_cpp`` C++ extension (pybind11).
 
-Запуск:
+Project metadata lives in pyproject.toml; this file only describes the
+extension module. Build and install everything with:
+
     pip install -e .
 
-После этого `import tempo_cpp` доступен из Python.
+After that ``import tempo_cpp`` works from Python.
 """
 
 from setuptools import setup
@@ -26,18 +28,6 @@ ext_modules = [
 
 
 setup(
-    name="tempo_benchmark",
-    version="0.1.0",
-    description="Real-time BPM detection algorithms comparison testbench",
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},
-    packages=["src", "algorithms", "algorithms.python"],
-    python_requires=">=3.9",
-    install_requires=[
-        "numpy>=1.24",
-        "scipy>=1.10",
-        "librosa>=0.10.0",
-        "soundfile>=0.12",
-        "matplotlib>=3.7",
-    ],
 )
